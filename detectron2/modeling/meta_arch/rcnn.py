@@ -4,6 +4,7 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 from detectron2.config import configurable
 from detectron2.data.detection_utils import convert_image_to_rgb
