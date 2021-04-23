@@ -159,11 +159,12 @@ class AugmentedConv(nn.Module):
         final_x = final_x[:, :, :L, L - 1:]
         return final_x
 
-augmented_conv_128 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=2, shape=64) 
+#augmented_conv_128 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=2, shape=64) 
 augmented_conv_64 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=1, shape=64) 
 augmented_conv_32 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True, stride=1, shape=32) 
 augmented_conv_16 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=1, shape=16) 
-augmented_conv_8 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=1, shape=8)        
+augmented_conv_8 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=1, shape=8) 
+augmented_conv_4 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_size=3, dk=40, dv=4, Nh=2, relative=True,  stride=1, shape=4) 
 
 #attention with more dk dv = equal to convolution
 # augmented_conv_128 = AugmentedConv(in_channels=3*256, out_channels=256, kernel_size=3, dk=64, dv=64, Nh=8, relative=True,  stride=2, shape=64) 
@@ -171,7 +172,7 @@ augmented_conv_8 = AugmentedConv(in_channels=5*256, out_channels=256, kernel_siz
 # augmented_conv_32 = AugmentedConv(in_channels=3*256, out_channels=256, kernel_size=3, dk=64, dv=64, Nh=8, relative=True, stride=1, shape=32) 
 # augmented_conv_16 = AugmentedConv(in_channels=3*256, out_channels=256, kernel_size=3, dk=64, dv=64, Nh=8, relative=True,  stride=1, shape=16) 
 # augmented_conv_8 = AugmentedConv(in_channels=3*256, out_channels=256, kernel_size=3, dk=64, dv=64, Nh=8, relative=True,  stride=1, shape=8) 
-up_sample =  nn.ConvTranspose2d(256, 256, 3,stride=2, padding=1, output_padding=1)
+#up_sample =  nn.ConvTranspose2d(256, 256, 3,stride=2, padding=1, output_padding=1)
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(nn.Module):
@@ -490,12 +491,13 @@ class ProposalNetwork1(nn.Module):
         super().__init__()
         self.backbone = build_backbone(cfg)
 
-        self.augmentedConv_128 = augmented_conv_128
+        #self.augmentedConv_128 = augmented_conv_128
         self.augmentedConv_64 = augmented_conv_64
         self.augmentedConv_32 = augmented_conv_32
         self.augmentedConv_16 = augmented_conv_16
         self.augmentedConv_8 = augmented_conv_8#AugmentedConv()
-        self.up_sample = up_sample
+        self.augmentedConv_4 = augmented_conv_4
+        #self.up_sample = up_sample
 
         self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
 
@@ -529,12 +531,12 @@ class ProposalNetwork1(nn.Module):
         for key in features.keys():
         	print(key,features[key].shape)
         feature_fused = {}
-        feature_fused['p3'] = self.up_sample(self.augmentedConv_128(features['p3']))
+        feature_fused['p3'] = self.up_sample(self.augmentedConv_64(features['p3']))
         #print('feature_128.shape up sample',feature_fused['p2'].shape)
-        feature_fused['p4'] = self.augmentedConv_64(features['p4'])
-        feature_fused['p5'] = self.augmentedConv_32(features['p5'])
-        feature_fused['p6'] = self.augmentedConv_16(features['p6'])
-        feature_fused['p7'] = self.augmentedConv_8(features['p7'])
+        feature_fused['p4'] = self.augmentedConv_32(features['p4'])
+        feature_fused['p5'] = self.augmentedConv_16(features['p5'])
+        feature_fused['p6'] = self.augmentedConv_8(features['p6'])
+        feature_fused['p7'] = self.augmentedConv_4(features['p7'])
         
         my_image = images.tensor[3::5] #5 slice
         #my_image = images.tensor[4::9]
