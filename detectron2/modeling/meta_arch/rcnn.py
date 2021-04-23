@@ -327,7 +327,7 @@ class ProposalNetwork(nn.Module):
         return processed_results
 
     
-   @META_ARCH_REGISTRY.register()
+@META_ARCH_REGISTRY.register()
 class ProposalNetwork1(nn.Module):
     """
     A meta architecture that only predicts object proposals.
