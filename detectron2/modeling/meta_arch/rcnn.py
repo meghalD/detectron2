@@ -17,7 +17,7 @@ from ..proposal_generator import build_proposal_generator
 from ..roi_heads import build_roi_heads
 from .build import META_ARCH_REGISTRY
 
-__all__ = ["GeneralizedRCNN", "ProposalNetwork"]
+__all__ = ["GeneralizedRCNN", "ProposalNetwork", "ProposalNetwork1"]
 
 
 @META_ARCH_REGISTRY.register()
@@ -311,6 +311,97 @@ class ProposalNetwork(nn.Module):
         else:
             gt_instances = None
         proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
+        # In training, the proposals are not useful at all but we generate them anyway.
+        # This makes RPN-only models about 5% slower.
+        if self.training:
+            return proposal_losses
+
+        processed_results = []
+        for results_per_image, input_per_image, image_size in zip(
+            proposals, batched_inputs, images.image_sizes
+        ):
+            height = input_per_image.get("height", image_size[0])
+            width = input_per_image.get("width", image_size[1])
+            r = detector_postprocess(results_per_image, height, width)
+            processed_results.append({"proposals": r})
+        return processed_results
+
+    
+   @META_ARCH_REGISTRY.register()
+class ProposalNetwork1(nn.Module):
+    """
+    A meta architecture that only predicts object proposals.
+    """
+
+    def __init__(self, cfg):
+        super().__init__()
+        self.backbone = build_backbone(cfg)
+
+        self.augmentedConv_128 = augmented_conv_128
+        self.augmentedConv_64 = augmented_conv_64
+        self.augmentedConv_32 = augmented_conv_32
+        self.augmentedConv_16 = augmented_conv_16
+        self.augmentedConv_8 = augmented_conv_8#AugmentedConv()
+        self.up_sample = up_sample
+
+        self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
+
+        self.register_buffer("pixel_mean", torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1))
+        self.register_buffer("pixel_std", torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1))
+
+    @property
+    def device(self):
+        return self.pixel_mean.device
+
+    def forward(self, batched_inputs):
+        """
+        Args:
+            Same as in :class:`GeneralizedRCNN.forward`
+
+        Returns:
+            list[dict]:
+                Each dict is the output for one input image.
+                The dict contains one key "proposals" whose value is a
+                :class:`Instances` with keys "proposal_boxes" and "objectness_logits".
+        """
+        images = [x["image"].to(self.device) for x in batched_inputs]
+        images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+
+        temp_images = ()
+        for im in images:
+            temp_images += im.split(3)
+
+        images = ImageList.from_tensors(temp_images, self.backbone.size_divisibility)
+        features = self.backbone(images.tensor)
+        for key in features.keys():
+        	print(key)
+        feature_fused = {}
+        feature_fused['p3'] = self.up_sample(self.augmentedConv_128(features['p3']))
+        #print('feature_128.shape up sample',feature_fused['p2'].shape)
+        feature_fused['p4'] = self.augmentedConv_64(features['p4'])
+        feature_fused['p5'] = self.augmentedConv_32(features['p5'])
+        feature_fused['p6'] = self.augmentedConv_16(features['p6'])
+        feature_fused['p7'] = self.augmentedConv_8(features['p7'])
+        
+        my_image = images.tensor[3::5] #5 slice
+        #my_image = images.tensor[4::9]
+        #print(my_image.shape)
+        my_image_sizes = [(my_image.shape[-2], my_image.shape[-1]) for im in my_image]
+        #print(image_sizes)
+        images = ImageList(my_image,my_image_sizes)
+
+
+        if "instances" in batched_inputs[0]:
+            gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
+        elif "targets" in batched_inputs[0]:
+            log_first_n(
+                logging.WARN, "'targets' in the model inputs is now renamed to 'instances'!", n=10
+            )
+            gt_instances = [x["targets"].to(self.device) for x in batched_inputs]
+        else:
+            gt_instances = None
+
+        proposals, proposal_losses = self.proposal_generator(images, feature_fused, gt_instances)
         # In training, the proposals are not useful at all but we generate them anyway.
         # This makes RPN-only models about 5% slower.
         if self.training:
