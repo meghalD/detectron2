@@ -499,8 +499,8 @@ class ProposalNetwork1(nn.Module):
 
         self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
 
-        self.register_buffer("pixel_mean", torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1))
-        self.register_buffer("pixel_std", torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1))
+        self.register_buffer("pixel_mean", torch.Tensor(cfg.MODEL.PIXEL_MEAN1).view(-1, 1, 1))
+        self.register_buffer("pixel_std", torch.Tensor(cfg.MODEL.PIXEL_STD1).view(-1, 1, 1))
 
     @property
     def device(self):
