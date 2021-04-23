@@ -531,7 +531,7 @@ class ProposalNetwork1(nn.Module):
         for key in features.keys():
         	print(key,features[key].shape)
         feature_fused = {}
-        feature_fused['p3'] = self.up_sample(self.augmentedConv_64(features['p3']))
+        feature_fused['p3'] = self.augmentedConv_64(features['p3'])
         #print('feature_128.shape up sample',feature_fused['p2'].shape)
         feature_fused['p4'] = self.augmentedConv_32(features['p4'])
         feature_fused['p5'] = self.augmentedConv_16(features['p5'])
