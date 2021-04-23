@@ -529,8 +529,8 @@ class ProposalNetwork1(nn.Module):
 
         images = ImageList.from_tensors(temp_images, self.backbone.size_divisibility)
         features = self.backbone(images.tensor)
-        for key in features.keys():
-        	print(key,features[key].shape)
+#         for key in features.keys():
+#         	print(key,features[key].shape)
         feature_fused = {}
         feature_fused['p3'] = self.augmentedConv_64(features['p3'])
         #print('feature_128.shape up sample',feature_fused['p2'].shape)
