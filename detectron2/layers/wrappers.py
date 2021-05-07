@@ -12,6 +12,27 @@ from typing import List
 import torch
 from torch.nn import functional as F
 
+def one_hot(labels: torch.Tensor,num_classes: int, device= None,dtype = None,eps: float = 1e-6):
+
+    if not isinstance(labels, torch.Tensor):
+        raise TypeError("Input labels type is not a torch.Tensor. Got {}"
+                        .format(type(labels)))
+
+    if not labels.dtype == torch.int64:
+        raise ValueError(
+            "labels must be of the same dtype torch.int64. Got: {}" .format(
+                labels.dtype))
+
+    if num_classes < 1:
+        raise ValueError("The number of classes must be bigger than one."
+                         " Got: {}".format(num_classes))
+
+    shape = labels.shape
+    one_hot = torch.zeros(
+        (shape[0], num_classes) + shape[1:], device=device, dtype=dtype
+    )
+
+    return one_hot.scatter_(1, labels.unsqueeze(1), 1.0) + eps
 
 def cat(tensors: List[torch.Tensor], dim: int = 0):
     """
@@ -22,15 +43,42 @@ def cat(tensors: List[torch.Tensor], dim: int = 0):
         return tensors[0]
     return torch.cat(tensors, dim)
 
-
 def cross_entropy(input, target, *, reduction="mean", **kwargs):
     """
     Same as `torch.nn.functional.cross_entropy`, but returns 0 (instead of nan)
     for empty inputs.
     """
+    print("our custom loss function")
     if target.numel() == 0 and reduction == "mean":
         return input.sum() * 0.0  # connect the gradient
-    return F.cross_entropy(input, target, **kwargs)
+
+    ce_final = F.cross_entropy(input, target, **kwargs)
+    #implementtion of dice loss
+    eps=1e-7
+
+    # compute softmax over the classes axis
+    input_soft =  F.softmax(input, dim=1)
+
+    # create the labels one hot tensor
+    target_one_hot = one_hot(
+        target, num_classes=input.shape[1],
+        device=input.device, dtype=input.dtype, eps=eps)
+    
+    intersection = torch.sum(input_soft * target_one_hot)
+    cardinality = torch.sum(input_soft + target_one_hot)
+
+    dice_loss = 2. * intersection / (cardinality + eps)    
+    dice_final = (1 - dice_loss)
+
+    return (ce_final - torch.log(dice_final))
+# def cross_entropy(input, target, *, reduction="mean", **kwargs):
+#     """
+#     Same as `torch.nn.functional.cross_entropy`, but returns 0 (instead of nan)
+#     for empty inputs.
+#     """
+#     if target.numel() == 0 and reduction == "mean":
+#         return input.sum() * 0.0  # connect the gradient
+#     return F.cross_entropy(input, target, **kwargs)
 
 
 class _NewEmptyTensorOp(torch.autograd.Function):
