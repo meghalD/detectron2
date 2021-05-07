@@ -48,7 +48,7 @@ def cross_entropy(input, target, *, reduction="mean", **kwargs):
     Same as `torch.nn.functional.cross_entropy`, but returns 0 (instead of nan)
     for empty inputs.
     """
-    print("our custom loss function")
+    #print("our custom loss function")
     if target.numel() == 0 and reduction == "mean":
         return input.sum() * 0.0  # connect the gradient
 
